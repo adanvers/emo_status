@@ -1,0 +1,182 @@
+---
+title: "Awe Tracks Prestige: Study 1 Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(lmerTest)
+library(sjPlot)
+library(piecewiseSEM)
+library(lavaan)
+library(psych)
+```
+
+This document provides the output of the analysis of Study 1 in the paper "Awe Tracks Prestige."
+
+```{r load data}
+# C:/Users/danv0000
+dp.dat <-  read.csv("C:/Users/danv0000/Dropbox/AwePrestige/DomPres_Study1/dp_inspirers_w.csv")
+
+dp.long <- read.csv("C:/Users/danv0000/Dropbox/AwePrestige/DomPres_Study1/DP_inspirers_long.csv")
+
+# identifying the influence variables
+inf <- c("money","guilt","politic","morality","smart",
+         "activity","science","news","art","school")
+# identifying the emotion variables
+emos <- c("amu","ang","awe","comp","cont",
+          "disg","emb","enth","fear","guil",
+          "love","sad","des","sham","pri",
+          "jeal")
+
+# grand mean centering variables for multi-level analysis
+dp.long[,c(emos,inf,"dom","pres")] <- scale(dp.long[,c(emos,inf,"dom","pres")], center=T, scale=F)
+```
+
+# Demographics
+
+```{r demos}
+# Average Age
+mean(dp.dat$part_age,na.rm=T)
+
+# SD of Age
+sd(dp.dat$part_age,na.rm=T)
+
+# Gender Proportions
+prop.table(table(dp.dat$part_sex))
+
+# Ethnicity Proportions
+prop.table(table(dp.dat$part_ethn))
+```
+
+# Manipulation Check
+
+```{r manip check}
+### Manipulation Check
+t.test(x=dp.dat$pres_pres, y=dp.dat$dom_pres, paired=T) # for prestige measures
+mean(dp.dat$pres_pres) # prestige mean for prestige condition
+mean(dp.dat$dom_pres) # prestige mean for dominance condition
+
+t.test(x=dp.dat$pres_dom, y=dp.dat$dom_dom, paired=T) # for dominance measures
+mean(dp.dat$pres_dom) # dominance mean for prestige condition
+mean(dp.dat$dom_dom) # dominance mean for dominance condition
+```
+
+# Relations Between Emotions and Dominance and Prestige
+
+## Awe Alone
+
+```{r awe dp}
+# awe predicted by dominance and prestige
+awe_dp <- lmer(awe ~ pres + dom + (1|id), data=dp.long)
+sjt.lmer(awe_dp, depvar.labels="Awe Response", string.est="Estimate", string.p="p-value",
+         separate.ci.col=F, show.std=T, p.numeric=F, pred.labels=c("Prestige","Dominance"))
+sem.model.fits(awe_dp)
+```
+
+## Fear Alone
+
+```{r fear dp}
+# fear predicted by dominance and prestige
+fear_dp <- lmer(fear ~ pres + dom + (1|id), data=dp.long)
+sjt.lmer(fear_dp, depvar.labels="Fear Response", string.est="Estimate", string.p="p-value",
+         separate.ci.col=F, show.std=T, p.numeric=F, pred.labels=c("Prestige","Dominance"))
+sem.model.fits(fear_dp)
+```
+
+## All Emotions Predicting Prestige and Dominance
+
+```{r all emos}
+pres_emos <- lmer(pres ~ amu + ang + awe + comp + cont + disg + emb +
+                    enth + fear + guil + love + sad + des + sham + 
+                    pri + jeal + (1|id), data=dp.long)
+dom_emos <- lmer(dom ~ amu + ang + awe + comp + cont + disg + emb +
+                   enth + fear + guil + love + sad + des + sham + 
+                   pri + jeal + (1|id), data=dp.long)
+
+sjt.lmer(pres_emos, dom_emos, depvar.labels=c("Prestige","Dominance"), string.est="Estimate", string.p="p-value", separate.ci.col=F, show.std=T, p.numeric=F, 
+         pred.labels=c("Amusement","Anger","Awe","Compassion","Contentment","Disgust",
+                       "Embarrassment","Enthusiasm","Fear","Guilt","Love","Sad",
+                       "Desire","Shame","Pride","Jealousy"))
+
+sem.model.fits(pres_emos)
+sem.model.fits(dom_emos)
+```
+
+# Analysis of Influence
+
+## Parallel Analysis for Influence Variables
+
+```{r influence fa}
+# creating a data set with just influence variables
+inf.dat <- dp.long[,inf]
+# conducting the parallel analysis
+fa.parallel(inf.dat)
+# since the items appear to be uni-dimnesional, I create a single influence scale
+dp.long$inf <- rowMeans(dp.long[,inf], na.rm=T)
+```
+
+## Predicting Influence from Dominance and Prestige
+
+```{r inf dp}
+# effect of prestige alone
+inf_p <- lmer(inf ~ pres + (1|id), data=dp.long)
+summary(inf_p)
+sem.model.fits(inf_p)
+
+# effect of dominance alone
+inf_d <- lmer(inf ~ dom + (1|id), data=dp.long)
+summary(inf_d)
+sem.model.fits(inf_d)
+
+# effect of both dominance and prestige
+inf_dp <- lmer(inf ~ dom + pres + (1|id), data=dp.long)
+summary(inf_dp)
+sem.model.fits(inf_dp)
+```
+
+## Predicting Influence from Awe
+
+```{r inf awe}
+inf_awe <- lmer(inf ~ awe + (1|id), data=dp.long)
+summary(inf_awe)
+sem.model.fits(inf_awe)
+
+# effect of awe, controlling for prestige
+inf_p_awe <- lmer(inf ~ pres + awe + (1|id), data=dp.long)
+summary(inf_p_awe)
+sem.model.fits(inf_p_awe)
+```
+
+## Mediation Analysis: Awe Only
+
+```{r med awe only}
+dp.dat$dom_inf <- rowMeans(dp.dat[,c("dom_money", "dom_guilt", "dom_politic", "dom_morality", "dom_smart", 'dom_activity', "dom_science", "dom_news", "dom_art", "dom_school")], na.rm=T)
+
+dp.dat$pres_inf <- rowMeans(dp.dat[,c("pres_money", "pres_guilt", "pres_politic", "pres_morality", "pres_smart", 'pres_activity', "pres_science", "pres_news", "pres_art", "pres_school")], na.rm=T)
+
+awe_med_p <- '
+pres_awe ~ a*pres_pres
+
+pres_inf ~ b*pres_awe + cp*pres_pres
+
+ab := a*b
+tot := a*b + cp
+'
+
+awe_med_p.fit <- sem(awe_med_p, dp.dat, se="bootstrap")
+summary(awe_med_p.fit, standardized=T, rsquare=T)
+
+awe_med_d <- '
+dom_awe ~ a*dom_pres
+
+dom_inf ~ b*dom_awe + cp*dom_pres
+
+ab := a*b
+tot := a*b + cp
+'
+
+awe_med_d.fit <- sem(awe_med_d, dp.dat, se="bootstrap")
+summary(awe_med_d.fit, standardized=T, rsquare=T)
+```
